@@ -7,23 +7,26 @@ import (
 	"net"
 	"net/http"
 	"supmap-gis/internal/config"
+	"supmap-gis/internal/domain/services"
 	"sync"
 	"time"
 )
 
 type Server struct {
-	Config *config.Config
-	logger *slog.Logger
+	Config           *config.Config
+	logger           *slog.Logger
+	geocodingService *services.GeocodingService
 }
 
-func NewServer(config *config.Config, logger *slog.Logger) *Server {
+func NewServer(config *config.Config, logger *slog.Logger, geocodingService *services.GeocodingService) *Server {
 	return &Server{
-		Config: config,
-		logger: logger,
+		Config:           config,
+		logger:           logger,
+		geocodingService: geocodingService,
 	}
 }
 
-func (s *Server) health(w http.ResponseWriter, r *http.Request) {
+func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate;")
 	if _, err := w.Write([]byte("API server is started.")); err != nil {
@@ -34,6 +37,7 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 func (s *Server) Start(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", s.health)
+	mux.HandleFunc("GET /geocode", s.geocodeHandler())
 
 	server := &http.Server{
 		Addr:    net.JoinHostPort(s.Config.APIServerHost, s.Config.APIServerPort),

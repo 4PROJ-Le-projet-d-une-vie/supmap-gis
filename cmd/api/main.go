@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
 	"os/signal"
 	"supmap-gis/internal/api"
 	"supmap-gis/internal/config"
+	"supmap-gis/internal/domain/services"
+	"supmap-gis/internal/providers/nominatim"
 	"syscall"
 )
 
@@ -29,7 +32,13 @@ func run() error {
 	jsonHandler := slog.NewJSONHandler(os.Stdout, nil)
 	logger := slog.New(jsonHandler)
 
-	server := api.NewServer(conf, logger)
+	nominatimURL := fmt.Sprintf("http://%s:%s", conf.NominatimHost, conf.NominatimPort)
+	nominatimClient := nominatim.NewClient(nominatimURL)
+	logger.Info("Nominatim client initialized", "url", nominatimURL)
+
+	geocodingService := services.NewGeocodingService(nominatimClient)
+
+	server := api.NewServer(conf, logger, geocodingService)
 	if err := server.Start(ctx); err != nil {
 		return err
 	}

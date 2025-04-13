@@ -8,6 +8,8 @@ import (
 type Config struct {
 	APIServerHost string `env:"API_SERVER_HOST"`
 	APIServerPort string `env:"API_SERVER_PORT"`
+	NominatimHost string `env:"NOMINATIM_HOST"`
+	NominatimPort string `env:"NOMINATIM_PORT"`
 }
 
 func New() (*Config, error) {

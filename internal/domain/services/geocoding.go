@@ -20,10 +20,10 @@ func NewGeocodingService(client GeocodingClient) *GeocodingService {
 }
 
 type Place struct {
-	Lat         float64
-	Lon         float64
-	Name        string
-	DisplayName string
+	Lat         float64 `json:"lat"`
+	Lon         float64 `json:"lon"`
+	Name        string  `json:"name"`
+	DisplayName string  `json:"display_name"`
 }
 
 func (s *GeocodingService) Search(ctx context.Context, address string) ([]Place, error) {

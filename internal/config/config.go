@@ -10,6 +10,8 @@ type Config struct {
 	APIServerPort string `env:"API_SERVER_PORT"`
 	NominatimHost string `env:"NOMINATIM_HOST"`
 	NominatimPort string `env:"NOMINATIM_PORT"`
+	ValhallaHost  string `env:"VALHALLA_HOST"`
+	ValhallaPort  string `env:"VALHALLA_PORT"`
 }
 
 func New() (*Config, error) {

@@ -16,13 +16,15 @@ type Server struct {
 	Config           *config.Config
 	logger           *slog.Logger
 	geocodingService *services.GeocodingService
+	routingService   *services.RoutingService
 }
 
-func NewServer(config *config.Config, logger *slog.Logger, geocodingService *services.GeocodingService) *Server {
+func NewServer(config *config.Config, logger *slog.Logger, geocodingService *services.GeocodingService, routingService *services.RoutingService) *Server {
 	return &Server{
 		Config:           config,
 		logger:           logger,
 		geocodingService: geocodingService,
+		routingService:   routingService,
 	}
 }
 
@@ -38,6 +40,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", s.health)
 	mux.HandleFunc("GET /geocode", s.geocodeHandler())
+	mux.HandleFunc("POST /route", s.routeHandler())
 
 	server := &http.Server{
 		Addr:    net.JoinHostPort(s.Config.APIServerHost, s.Config.APIServerPort),

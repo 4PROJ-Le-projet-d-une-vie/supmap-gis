@@ -3,8 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"io"
-	"math"
 	"supmap-gis/internal/providers/valhalla"
 )
 
@@ -20,73 +18,111 @@ func NewRoutingService(client RoutingClient) *RoutingService {
 	return &RoutingService{client: client}
 }
 
-func readDelta(s string, idx *int) (int, error) {
-	var result, shift, b int
-	for {
-		if *idx >= len(s) {
-			return 0, io.ErrUnexpectedEOF
-		}
-		b = int(s[*idx]) - 63
-		*idx++
-		result |= (b & 0x1f) << shift
-		shift += 5
-		if b < 0x20 {
-			break
-		}
+func (s *RoutingService) CalculateRoute(ctx context.Context, routeRequest valhalla.RouteRequest) (*[]Trip, error) {
+	vRoute, err := s.client.CalculateRoute(ctx, routeRequest)
+	if err != nil {
+		return nil, fmt.Errorf("calculate route: %w", err)
 	}
-	if result&1 != 0 {
-		return ^(result >> 1), nil
+
+	respTrips := make([]Trip, 0, 1)
+	// Main trip
+	mainTrip, err := MapValhallaTrip(vRoute.Trip)
+	if err != nil {
+		return nil, fmt.Errorf("MapValhallaTrip: %w", err)
 	}
-	return result >> 1, nil
+	respTrips = append(respTrips, *mainTrip)
+	// Alternative trips
+	for _, altTrip := range vRoute.Alternates {
+		trip, err := MapValhallaTrip(altTrip.Trip)
+		if err != nil {
+			return nil, fmt.Errorf("MapValhallaTrip: %w", err)
+		}
+		respTrips = append(respTrips, *trip)
+	}
+
+	return &respTrips, nil
 }
+
+// --- DTOs ---
 
 type Point struct {
 	Lat float64 `json:"latitude"`
 	Lon float64 `json:"longitude"`
 }
 
-// DecodePolyline decodes a Google encoded Polyline string into a slice of coordinates.
-// The precision parameter defines the number of decimal digits used when encoding.
-// If precision is zero or negative, the function defaults to 6 digits (1e-6 precision).
-//
-// It returns a slice of [Point] structs, each containing latitude and longitude in
-// decimal degrees, or an error if the input string is malformed.
-func DecodePolyline(encoded string, precision int) ([]Point, error) {
-	if precision <= 0 {
-		precision = 6
-	}
-	factor := math.Pow10(precision)
-
-	idx := 0
-	lat, lng := 0, 0
-	var coords []Point
-
-	for idx < len(encoded) {
-		dLat, err := readDelta(encoded, &idx)
-		if err != nil {
-			return nil, fmt.Errorf("decodePolyline: failed reading latitude at idx %d: %w", idx, err)
-		}
-		lat += dLat
-
-		dLng, err := readDelta(encoded, &idx)
-		if err != nil {
-			return nil, fmt.Errorf("decodePolyline: failed reading longitude at idx %d: %w", idx, err)
-		}
-		lng += dLng
-
-		coords = append(coords, Point{
-			Lat: float64(lat) / factor,
-			Lon: float64(lng) / factor,
-		})
-	}
-
-	return coords, nil
+type Maneuver struct {
+	Type                uint8    `json:"type"`
+	Instruction         string   `json:"instruction"`
+	StreetNames         []string `json:"street_names"`
+	Time                float64  `json:"time"`
+	Length              float64  `json:"length"`
+	RoundaboutExitCount *uint8   `json:"roundabout_exit_count,omitempty"`
 }
 
-func (s *RoutingService) CalculateRoute(ctx context.Context, routeRequest valhalla.RouteRequest) (*valhalla.RouteResponse, error) {
-	resp, err := s.client.CalculateRoute(ctx, routeRequest)
-	if err != nil {
-		return nil, fmt.Errorf("calculate route: %w", err)
+type Summary struct {
+	Time   float64 `json:"time"`
+	Length float64 `json:"length"`
+}
+
+type Leg struct {
+	Maneuvers []Maneuver `json:"maneuvers"`
+	Summary   Summary    `json:"summary"`
+	Shape     []Point    `json:"shape"`
+}
+
+type Trip struct {
+	Locations []valhalla.LocationResponse `json:"locations"`
+	Legs      []Leg                       `json:"legs"`
+	Summary   Summary                     `json:"summary"`
+}
+
+// --- Mapping Valhalla -> DTO ---
+
+// MapValhallaTrip maps Valhalla's [valhalla.Trip] struct to a service DTO [Trip] struct.
+func MapValhallaTrip(vt valhalla.Trip) (*Trip, error) {
+	legs := make([]Leg, len(vt.Legs))
+	for i, leg := range vt.Legs {
+		convertedLeg, err := mapValhallaLeg(leg)
+		if err != nil {
+			return nil, fmt.Errorf("legs[%d]: %w", i, err)
+		}
+		legs[i] = *convertedLeg
 	}
-	return resp, nil
+	return &Trip{
+		Locations: vt.Locations,
+		Legs:      legs,
+		Summary: Summary{
+			Time:   vt.Summary.Time,
+			Length: vt.Summary.Length,
+		},
+	}, nil
+}
+
+// mapValhallaLeg maps Valhalla's [valhalla.Leg] struct to a service DTO [Leg] struct.
+func mapValhallaLeg(vl valhalla.Leg) (*Leg, error) {
+	maneuvers := make([]Maneuver, len(vl.Maneuvers))
+	for i, m := range vl.Maneuvers {
+		maneuvers[i] = Maneuver{
+			Type:                m.Type,
+			Instruction:         m.Instruction,
+			StreetNames:         m.StreetNames,
+			Time:                m.Time,
+			Length:              m.Length,
+			RoundaboutExitCount: m.RoundaboutExitCount,
+		}
+	}
+
+	shape, err := DecodePolyline(vl.Shape, 6)
+	if err != nil {
+		return nil, fmt.Errorf("mapValhallaLeg: %w", err)
+	}
+
+	return &Leg{
+		Maneuvers: maneuvers,
+		Summary: Summary{
+			Time:   vl.Summary.Time,
+			Length: vl.Summary.Length,
+		},
+		Shape: shape,
+	}, nil
 }

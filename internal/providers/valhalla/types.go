@@ -179,7 +179,7 @@ type Lane struct {
 }
 
 type Maneuver struct {
-	Type                             int          `json:"type"`
+	Type                             uint8        `json:"type"`
 	Instruction                      string       `json:"instruction"`
 	VerbalTransitionAlertInstruction *string      `json:"verbal_transition_alert_instruction,omitempty"`
 	VerbalPreTransitionInstruction   *string      `json:"verbal_pre_transition_instruction,omitempty"`
@@ -196,7 +196,7 @@ type Maneuver struct {
 	Gate                             *bool        `json:"gate,omitempty"`
 	Ferry                            *bool        `json:"ferry,omitempty"`
 	Sign                             *Sign        `json:"sign,omitempty"`
-	RoundaboutExitCount              *int         `json:"roundabout_exit_count,omitempty"`
+	RoundaboutExitCount              *uint8       `json:"roundabout_exit_count,omitempty"`
 	DepartInstruction                *string      `json:"depart_instruction,omitempty"`
 	VerbalDepartInstruction          *string      `json:"verbal_depart_instruction,omitempty"`
 	ArriveInstruction                *string      `json:"arrive_instruction,omitempty"`

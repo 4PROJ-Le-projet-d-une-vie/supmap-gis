@@ -21,8 +21,8 @@ func NewRoutingService(client RoutingClient) *RoutingService {
 }
 
 type Point struct {
-	Lat float64 `json:"lat"`
-	Lon float64 `json:"lon"`
+	Lat float64 `json:"latitude"`
+	Lon float64 `json:"longitude"`
 }
 
 // TODO: Refaire Route dans un types.go pour garder seulement ce qui est utile pour Baptiste et décoder toutes les polylines.

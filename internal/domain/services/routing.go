@@ -20,18 +20,6 @@ func NewRoutingService(client RoutingClient) *RoutingService {
 	return &RoutingService{client: client}
 }
 
-type Point struct {
-	Lat float64 `json:"latitude"`
-	Lon float64 `json:"longitude"`
-}
-
-// TODO: Refaire Route dans un types.go pour garder seulement ce qui est utile pour Baptiste et décoder toutes les polylines.
-
-type Route struct {
-	valhalla.RouteResponse
-	Polyline []Point `json:"polyline"`
-}
-
 func readDelta(s string, idx *int) (int, error) {
 	var result, shift, b int
 	for {
@@ -50,6 +38,11 @@ func readDelta(s string, idx *int) (int, error) {
 		return ^(result >> 1), nil
 	}
 	return result >> 1, nil
+}
+
+type Point struct {
+	Lat float64 `json:"latitude"`
+	Lon float64 `json:"longitude"`
 }
 
 // DecodePolyline decodes a Google encoded Polyline string into a slice of coordinates.
@@ -90,19 +83,10 @@ func DecodePolyline(encoded string, precision int) ([]Point, error) {
 	return coords, nil
 }
 
-func (s *RoutingService) CalculateRoute(ctx context.Context, routeRequest valhalla.RouteRequest) (*Route, error) {
+func (s *RoutingService) CalculateRoute(ctx context.Context, routeRequest valhalla.RouteRequest) (*valhalla.RouteResponse, error) {
 	resp, err := s.client.CalculateRoute(ctx, routeRequest)
 	if err != nil {
 		return nil, fmt.Errorf("calculate route: %w", err)
 	}
-
-	polyline, err := DecodePolyline(resp.Trip.Legs[0].Shape, 6)
-	if err != nil {
-		return nil, fmt.Errorf("calculate route: %w", err)
-	}
-
-	return &Route{
-		RouteResponse: *resp,
-		Polyline:      polyline,
-	}, nil
+	return resp, nil
 }

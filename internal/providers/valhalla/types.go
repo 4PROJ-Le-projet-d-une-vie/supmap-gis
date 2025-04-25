@@ -184,8 +184,8 @@ type Maneuver struct {
 	VerbalTransitionAlertInstruction *string      `json:"verbal_transition_alert_instruction,omitempty"`
 	VerbalPreTransitionInstruction   *string      `json:"verbal_pre_transition_instruction,omitempty"`
 	VerbalPostTransitionInstruction  *string      `json:"verbal_post_transition_instruction,omitempty"`
-	StreetNames                      []string     `json:"street_names,omitempty"`
-	BeginStreetNames                 []string     `json:"begin_street_names,omitempty"`
+	StreetNames                      []string     `json:"street_names"`
+	BeginStreetNames                 []string     `json:"begin_street_names"`
 	Time                             float64      `json:"time"`
 	Length                           float64      `json:"length"`
 	BeginShapeIndex                  int          `json:"begin_shape_index"`

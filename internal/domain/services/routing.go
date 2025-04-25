@@ -110,6 +110,11 @@ func mapValhallaLeg(vl valhalla.Leg) (*Leg, error) {
 			Length:              m.Length,
 			RoundaboutExitCount: m.RoundaboutExitCount,
 		}
+
+		// initialize StreetNames to an empty slice instead of returning a nil value
+		if maneuvers[i].StreetNames == nil {
+			maneuvers[i].StreetNames = []string{}
+		}
 	}
 
 	shape, err := DecodePolyline(vl.Shape, 6)

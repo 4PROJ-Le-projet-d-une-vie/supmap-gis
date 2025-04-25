@@ -1,10 +1,5 @@
 package valhalla
 
-import (
-	"errors"
-	"fmt"
-)
-
 type RouteRequest struct {
 	Locations      []LocationRequest `json:"locations"`
 	Costing        Costing           `json:"costing"`
@@ -12,16 +7,6 @@ type RouteRequest struct {
 	Language       string            `json:"language"`
 	Alternates     int               `json:"alternates"`
 	ID             *string           `json:"id,omitempty"`
-}
-
-func (r RouteRequest) Validate() error {
-	if len(r.Locations) < 2 {
-		return errors.New("at least 2 locations must be provided")
-	}
-	if !r.Costing.IsValid() {
-		return errors.New(fmt.Sprintf("costing %q is invalid", r.Costing))
-	}
-	return nil
 }
 
 type RouteResponse struct {

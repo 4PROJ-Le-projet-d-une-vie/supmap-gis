@@ -15,6 +15,11 @@ import (
 	"syscall"
 )
 
+// @title			SupMap GIS API
+// @version		1.0
+// @description	Cette API permet de réaliser des calculs et opérations géographiques (routing, geocoding, map-matching).
+// @accept			json
+// @schemes		http
 func main() {
 	if err := run(); err != nil {
 		log.Fatal(err)

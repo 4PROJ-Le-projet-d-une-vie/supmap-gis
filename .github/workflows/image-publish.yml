@@ -25,5 +25,6 @@ jobs:
 
       - name: Build and push container image
         run: |
-          docker build -t ghcr.io/${{ github.repository }}:latest .
-          docker push ghcr.io/${{ github.repository }}:latest
+          REPO_NAME="${GITHUB_REPOSITORY##*/}"
+          docker build -t ghcr.io/4proj/$REPO_NAME:latest .
+          docker push ghcr.io/4proj/$REPO_NAME:latest

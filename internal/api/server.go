@@ -3,9 +3,11 @@ package api
 import (
 	"context"
 	"fmt"
+	"github.com/swaggo/http-swagger"
 	"log/slog"
 	"net"
 	"net/http"
+	_ "supmap-gis/docs"
 	"supmap-gis/internal/config"
 	"supmap-gis/internal/domain/services"
 	"sync"
@@ -38,6 +40,7 @@ func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) Start(ctx context.Context) error {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/docs/", httpSwagger.WrapHandler)
 	mux.HandleFunc("GET /health", s.health)
 	mux.HandleFunc("GET /geocode", s.geocodeHandler())
 	mux.HandleFunc("POST /route", s.routeHandler())

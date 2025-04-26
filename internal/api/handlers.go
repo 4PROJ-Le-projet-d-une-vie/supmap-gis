@@ -9,6 +9,19 @@ import (
 	"supmap-gis/internal/providers/valhalla"
 )
 
+// ErrResponse is here for the sole purpose of being used in swaggo annotations.
+type ErrResponse struct {
+	Message string `json:"message"`
+}
+
+// @Summary Géocode une adresse
+// @Description Convertit une adresse en coordonnées. Plusieurs résultats peuvent être renvoyés.
+// @Tags geocoding
+// @Produce json
+// @Param address query string true "Adresse dont on souhaite avoir les coordonnées GPS. Exemple: 'Abbaye aux Dames Caen'"
+// @Success 200 {object} handler.Response[[]services.Place]
+// @Failure 500 {object} ErrResponse "Erreur interne du serveur"
+// @Router /geocode [get]
 func (s *Server) geocodeHandler() http.HandlerFunc {
 	return handler.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		address := r.URL.Query().Get("address")
@@ -76,6 +89,16 @@ func (r RouteRequest) ToValhallaRequest() valhalla.RouteRequest {
 	}
 }
 
+// @Summary Calcul d'itinéraires.
+// @Description Calcule un ou plusieurs itinéraires à partir de plusieurs localisations.
+// @Tags routing
+// @Accept json
+// @Produce json
+// @Param routeRequest body RouteRequest true "Liste de localisation accompagnés d'options permettant de paramétrer le calcul d'itinéraire. 'language', 'costing_options', et 'alternates' sont facultatifs."
+// @Success 200 {object} handler.Response[[]services.Trip]
+// @Failure 400 {object} ErrResponse "Corps de la requête invalide"
+// @Failure 500 {object} ErrResponse "Erreur interne du serveur"
+// @Router /route [post]
 func (s *Server) routeHandler() http.HandlerFunc {
 	return handler.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		req, err := handler.Decode[RouteRequest](r)

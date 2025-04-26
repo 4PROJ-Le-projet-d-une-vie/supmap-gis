@@ -48,11 +48,12 @@ func (s *Server) geocodeHandler() http.HandlerFunc {
 }
 
 type RouteRequest struct {
-	Locations      []valhalla.LocationRequest `json:"locations"`
-	Costing        valhalla.Costing           `json:"costing"`
-	CostingOptions *valhalla.CostingOptions   `json:"costing_options,omitempty"`
-	Language       *string                    `json:"language,omitempty"`
-	Alternates     *int                       `json:"alternates,omitempty"`
+	Locations        []valhalla.LocationRequest   `json:"locations"`
+	ExcludeLocations *[]valhalla.ExcludeLocations `json:"exclude_locations,omitempty"`
+	Costing          valhalla.Costing             `json:"costing"`
+	CostingOptions   *valhalla.CostingOptions     `json:"costing_options,omitempty"`
+	Language         *string                      `json:"language,omitempty"`
+	Alternates       *int                         `json:"alternates,omitempty"`
 }
 
 func (r RouteRequest) Validate() error {
@@ -81,11 +82,12 @@ func (r RouteRequest) ToValhallaRequest() valhalla.RouteRequest {
 	}
 
 	return valhalla.RouteRequest{
-		Locations:      r.Locations,
-		Costing:        r.Costing,
-		CostingOptions: *r.CostingOptions,
-		Language:       language,
-		Alternates:     alternates,
+		Locations:        r.Locations,
+		ExcludeLocations: r.ExcludeLocations,
+		Costing:          r.Costing,
+		CostingOptions:   *r.CostingOptions,
+		Language:         language,
+		Alternates:       alternates,
 	}
 }
 
@@ -94,7 +96,7 @@ func (r RouteRequest) ToValhallaRequest() valhalla.RouteRequest {
 // @Tags routing
 // @Accept json
 // @Produce json
-// @Param routeRequest body RouteRequest true "Liste de localisation accompagnés d'options permettant de paramétrer le calcul d'itinéraire. 'language', 'costing_options', et 'alternates' sont facultatifs."
+// @Param routeRequest body RouteRequest true "Liste de localisation accompagnés d'options permettant de paramétrer le calcul d'itinéraire. Optionnels: 'language', 'costing_options', 'alternates', 'exclude_locations'."
 // @Success 200 {object} handler.Response[[]services.Trip]
 // @Failure 400 {object} ErrResponse "Corps de la requête invalide"
 // @Failure 500 {object} ErrResponse "Erreur interne du serveur"

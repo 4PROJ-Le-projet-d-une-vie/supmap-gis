@@ -1,12 +1,13 @@
 package valhalla
 
 type RouteRequest struct {
-	Locations      []LocationRequest `json:"locations"`
-	Costing        Costing           `json:"costing"`
-	CostingOptions CostingOptions    `json:"costing_options"`
-	Language       string            `json:"language"`
-	Alternates     int               `json:"alternates"`
-	ID             *string           `json:"id,omitempty"`
+	Locations        []LocationRequest   `json:"locations"`
+	ExcludeLocations *[]ExcludeLocations `json:"exclude_locations,omitempty"`
+	Costing          Costing             `json:"costing"`
+	CostingOptions   CostingOptions      `json:"costing_options"`
+	Language         string              `json:"language"`
+	Alternates       int                 `json:"alternates"`
+	ID               *string             `json:"id,omitempty"`
 }
 
 type RouteResponse struct {
@@ -48,6 +49,11 @@ type LocationRequest struct {
 	Lon  float64       `json:"lon"`
 	Type *LocationType `json:"type,omitempty"`
 	Name *string       `json:"name,omitempty"`
+}
+
+type ExcludeLocations struct {
+	Lat float64 `json:"lat"`
+	Lon float64 `json:"lon"`
 }
 
 // Costing corresponds to the run-time costing model used by Valhalla to generate the route path.

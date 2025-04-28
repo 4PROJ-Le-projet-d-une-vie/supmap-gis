@@ -22,7 +22,9 @@ WORKDIR /app
 COPY --from=builder /app/supmap-gis .
 COPY --from=builder /app/docs ./docs
 
-ENV PORT=80
+# Default values
+ENV API_SERVER_HOST=0.0.0.0
+ENV API_SERVER_PORT=80
 EXPOSE 80
 
 ENTRYPOINT ["./supmap-gis"]

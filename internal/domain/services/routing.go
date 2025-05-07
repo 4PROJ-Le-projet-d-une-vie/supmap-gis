@@ -56,6 +56,8 @@ type Maneuver struct {
 	StreetNames         []string `json:"street_names"`
 	Time                float64  `json:"time"`
 	Length              float64  `json:"length"`
+	BeginShapeIndex     uint     `json:"begin_shape_index"`
+	EndShapeIndex       uint     `json:"end_shape_index"`
 	RoundaboutExitCount *uint8   `json:"roundabout_exit_count,omitempty"`
 }
 
@@ -108,6 +110,8 @@ func mapValhallaLeg(vl valhalla.Leg) (*Leg, error) {
 			StreetNames:         m.StreetNames,
 			Time:                m.Time,
 			Length:              m.Length,
+			BeginShapeIndex:     m.BeginShapeIndex,
+			EndShapeIndex:       m.EndShapeIndex,
 			RoundaboutExitCount: m.RoundaboutExitCount,
 		}
 

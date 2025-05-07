@@ -179,8 +179,8 @@ type Maneuver struct {
 	BeginStreetNames                 []string     `json:"begin_street_names"`
 	Time                             float64      `json:"time"`
 	Length                           float64      `json:"length"`
-	BeginShapeIndex                  int          `json:"begin_shape_index"`
-	EndShapeIndex                    int          `json:"end_shape_index"`
+	BeginShapeIndex                  uint         `json:"begin_shape_index"`
+	EndShapeIndex                    uint         `json:"end_shape_index"`
 	Toll                             *bool        `json:"toll,omitempty"`
 	Highway                          *bool        `json:"highway,omitempty"`
 	Rough                            *bool        `json:"rough,omitempty"`

@@ -20,6 +20,14 @@ func NewRoutingService(client RoutingClient, incidentsService *IncidentsService)
 }
 
 func (s *RoutingService) CalculateRoute(ctx context.Context, routeRequest valhalla.RouteRequest) (*[]Trip, error) {
+	locationsPoints := extractPointsFromLocations(routeRequest.Locations)
+	incidents := s.incidentsService.IncidentsAroundLocations(ctx, locationsPoints)
+	excludes := pointsToExcludeLocations(incidents)
+
+	// Add incidents coordinates to the locations to avoid
+	routeRequest.ExcludeLocations = append(routeRequest.ExcludeLocations, excludes...)
+	fmt.Println(routeRequest.ExcludeLocations)
+
 	vRoute, err := s.client.CalculateRoute(ctx, routeRequest)
 	if err != nil {
 		return nil, fmt.Errorf("calculate route: %w", err)
@@ -42,6 +50,17 @@ func (s *RoutingService) CalculateRoute(ctx context.Context, routeRequest valhal
 	}
 
 	return &respTrips, nil
+}
+
+func extractPointsFromLocations(locations []valhalla.LocationRequest) []Point {
+	points := make([]Point, 0, len(locations))
+	for _, loc := range locations {
+		points = append(points, Point{
+			Lat: loc.Lat,
+			Lon: loc.Lon,
+		})
+	}
+	return points
 }
 
 // --- DTOs ---
@@ -135,4 +154,16 @@ func mapValhallaLeg(vl valhalla.Leg) (*Leg, error) {
 		},
 		Shape: shape,
 	}, nil
+}
+
+// Conversion []Point -> []valhalla.ExcludeLocations
+func pointsToExcludeLocations(points []Point) []valhalla.ExcludeLocations {
+	excludes := make([]valhalla.ExcludeLocations, 0, len(points))
+	for _, pt := range points {
+		excludes = append(excludes, valhalla.ExcludeLocations{
+			Lat: pt.Lat,
+			Lon: pt.Lon,
+		})
+	}
+	return excludes
 }

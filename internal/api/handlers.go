@@ -48,12 +48,12 @@ func (s *Server) geocodeHandler() http.HandlerFunc {
 }
 
 type RouteRequest struct {
-	Locations        []valhalla.LocationRequest   `json:"locations"`
-	ExcludeLocations *[]valhalla.ExcludeLocations `json:"exclude_locations,omitempty"`
-	Costing          valhalla.Costing             `json:"costing"`
-	CostingOptions   *valhalla.CostingOptions     `json:"costing_options,omitempty"`
-	Language         *string                      `json:"language,omitempty"`
-	Alternates       *int                         `json:"alternates,omitempty"`
+	Locations        []valhalla.LocationRequest  `json:"locations"`
+	ExcludeLocations []valhalla.ExcludeLocations `json:"exclude_locations"`
+	Costing          valhalla.Costing            `json:"costing"`
+	CostingOptions   *valhalla.CostingOptions    `json:"costing_options,omitempty"`
+	Language         *string                     `json:"language,omitempty"`
+	Alternates       *int                        `json:"alternates,omitempty"`
 }
 
 func (r RouteRequest) Validate() error {

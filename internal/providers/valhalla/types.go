@@ -1,13 +1,13 @@
 package valhalla
 
 type RouteRequest struct {
-	Locations        []LocationRequest   `json:"locations"`
-	ExcludeLocations *[]ExcludeLocations `json:"exclude_locations,omitempty"`
-	Costing          Costing             `json:"costing"`
-	CostingOptions   CostingOptions      `json:"costing_options"`
-	Language         string              `json:"language"`
-	Alternates       int                 `json:"alternates"`
-	ID               *string             `json:"id,omitempty"`
+	Locations        []LocationRequest  `json:"locations"`
+	ExcludeLocations []ExcludeLocations `json:"exclude_locations"`
+	Costing          Costing            `json:"costing"`
+	CostingOptions   CostingOptions     `json:"costing_options"`
+	Language         string             `json:"language"`
+	Alternates       int                `json:"alternates"`
+	ID               *string            `json:"id,omitempty"`
 }
 
 type RouteResponse struct {

@@ -6,12 +6,14 @@ import (
 )
 
 type Config struct {
-	APIServerHost string `env:"API_SERVER_HOST"`
-	APIServerPort string `env:"API_SERVER_PORT"`
-	NominatimHost string `env:"NOMINATIM_HOST"`
-	NominatimPort string `env:"NOMINATIM_PORT"`
-	ValhallaHost  string `env:"VALHALLA_HOST"`
-	ValhallaPort  string `env:"VALHALLA_PORT"`
+	APIServerHost       string `env:"API_SERVER_HOST"`
+	APIServerPort       string `env:"API_SERVER_PORT"`
+	NominatimHost       string `env:"NOMINATIM_HOST"`
+	NominatimPort       string `env:"NOMINATIM_PORT"`
+	ValhallaHost        string `env:"VALHALLA_HOST"`
+	ValhallaPort        string `env:"VALHALLA_PORT"`
+	SupmapIncidentsHost string `env:"SUPMAP_INCIDENTS_HOST"`
+	SupmapIncidentsPort string `env:"SUPMAP_INCIDENTS_PORT"`
 }
 
 func New() (*Config, error) {

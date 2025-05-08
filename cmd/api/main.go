@@ -11,6 +11,7 @@ import (
 	"supmap-gis/internal/config"
 	"supmap-gis/internal/domain/services"
 	"supmap-gis/internal/providers/nominatim"
+	supmapIncidents "supmap-gis/internal/providers/supmap-incidents"
 	"supmap-gis/internal/providers/valhalla"
 	"syscall"
 )
@@ -44,11 +45,17 @@ func run() error {
 
 	geocodingService := services.NewGeocodingService(nominatimClient)
 
+	supmapIncidentsURL := fmt.Sprintf("http://%s:%s", conf.SupmapIncidentsHost, conf.SupmapIncidentsPort)
+	supmapIncidentsClient := supmapIncidents.NewClient(supmapIncidentsURL)
+	logger.Info("supmap-incidents client initialized", "url", supmapIncidentsURL)
+
+	incidentsService := services.NewIncidentsService(supmapIncidentsClient)
+
 	valhallaURL := fmt.Sprintf("http://%s:%s", conf.ValhallaHost, conf.ValhallaPort)
 	valhallaClient := valhalla.NewClient(valhallaURL)
 	logger.Info("Valhalla client initialized", "url", valhallaURL)
 
-	routingService := services.NewRoutingService(valhallaClient)
+	routingService := services.NewRoutingService(valhallaClient, incidentsService)
 
 	server := api.NewServer(conf, logger, geocodingService, routingService)
 	if err := server.Start(ctx); err != nil {

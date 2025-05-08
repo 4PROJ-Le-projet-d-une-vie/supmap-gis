@@ -11,11 +11,12 @@ type RoutingClient interface {
 }
 
 type RoutingService struct {
-	client RoutingClient
+	client           RoutingClient
+	incidentsService *IncidentsService
 }
 
-func NewRoutingService(client RoutingClient) *RoutingService {
-	return &RoutingService{client: client}
+func NewRoutingService(client RoutingClient, incidentsService *IncidentsService) *RoutingService {
+	return &RoutingService{client: client, incidentsService: incidentsService}
 }
 
 func (s *RoutingService) CalculateRoute(ctx context.Context, routeRequest valhalla.RouteRequest) (*[]Trip, error) {

@@ -47,7 +47,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	server := &http.Server{
 		Addr:    net.JoinHostPort(s.Config.APIServerHost, s.Config.APIServerPort),
-		Handler: mux,
+		Handler: WithCORS(mux),
 	}
 
 	go func() {

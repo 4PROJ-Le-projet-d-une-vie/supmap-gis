@@ -85,7 +85,7 @@ func (r RouteRequest) ToValhallaRequest() valhalla.RouteRequest {
 		Locations:        r.Locations,
 		ExcludeLocations: r.ExcludeLocations,
 		Costing:          r.Costing,
-		CostingOptions:   *r.CostingOptions,
+		CostingOptions:   r.CostingOptions,
 		Language:         language,
 		Alternates:       alternates,
 	}

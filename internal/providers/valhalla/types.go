@@ -4,7 +4,7 @@ type RouteRequest struct {
 	Locations        []LocationRequest  `json:"locations"`
 	ExcludeLocations []ExcludeLocations `json:"exclude_locations"`
 	Costing          Costing            `json:"costing"`
-	CostingOptions   CostingOptions     `json:"costing_options"`
+	CostingOptions   *CostingOptions    `json:"costing_options,omitempty"`
 	Language         string             `json:"language"`
 	Alternates       int                `json:"alternates"`
 	ID               *string            `json:"id,omitempty"`

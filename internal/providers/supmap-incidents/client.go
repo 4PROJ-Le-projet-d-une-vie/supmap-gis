@@ -39,7 +39,7 @@ func NewClient(baseURL string, options ...ClientOptions) *Client {
 type RadiusMeter uint
 
 func (c *Client) IncidentsInRadius(ctx context.Context, lat, lon float64, radius RadiusMeter) ([]Incident, error) {
-	reqURL, err := url.Parse(c.baseURL + "/incidents")
+	reqURL, err := url.Parse(c.baseURL + "/internal/incidents")
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse URL: %w", err)
 	}

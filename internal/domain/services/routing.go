@@ -26,7 +26,6 @@ func (s *RoutingService) CalculateRoute(ctx context.Context, routeRequest valhal
 
 	// Add incidents coordinates to the locations to avoid
 	routeRequest.ExcludeLocations = append(routeRequest.ExcludeLocations, excludes...)
-	fmt.Println(routeRequest.ExcludeLocations)
 
 	vRoute, err := s.client.CalculateRoute(ctx, routeRequest)
 	if err != nil {

@@ -35,10 +35,12 @@ func (s *IncidentsService) IncidentsAroundLocations(ctx context.Context, locatio
 
 	incidentsPoints := make([]Point, 0, len(incidents))
 	for _, incident := range incidents {
-		incidentsPoints = append(incidentsPoints, Point{
-			Lat: incident.Latitude,
-			Lon: incident.Longitude,
-		})
+		if incident.Type != nil && incident.Type.NeedRecalculation {
+			incidentsPoints = append(incidentsPoints, Point{
+				Lat: incident.Latitude,
+				Lon: incident.Longitude,
+			})
+		}
 	}
 
 	return incidentsPoints

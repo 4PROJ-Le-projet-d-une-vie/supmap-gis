@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"math"
 	supmapIncidents "supmap-gis/internal/providers/supmap-incidents"
@@ -23,22 +22,20 @@ func NewIncidentsService(client IncidentsClient) *IncidentsService {
 func (s *IncidentsService) IncidentsAroundLocations(ctx context.Context, locations []Point) []Point {
 	centerLat, centerLon, radius := computeLocationsBoundingCircle(locations)
 
-	fmt.Println(centerLat, centerLon, radius)
-
 	incidents, err := s.client.IncidentsInRadius(ctx, centerLat, centerLon, radius)
 	if err != nil {
 		log.Printf("Error getting incidents: %v", err)
 		return []Point{}
 	}
 
-	fmt.Println(incidents)
-
 	incidentsPoints := make([]Point, 0, len(incidents))
 	for _, incident := range incidents {
-		incidentsPoints = append(incidentsPoints, Point{
-			Lat: incident.Latitude,
-			Lon: incident.Longitude,
-		})
+		if incident.Type != nil && incident.Type.NeedRecalculation {
+			incidentsPoints = append(incidentsPoints, Point{
+				Lat: incident.Latitude,
+				Lon: incident.Longitude,
+			})
+		}
 	}
 
 	return incidentsPoints

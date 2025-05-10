@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 )
 
@@ -70,4 +71,39 @@ func (c *Client) Search(ctx context.Context, address string) ([]GeocodeResult, e
 	}
 
 	return result, nil
+}
+
+func (c *Client) Reverse(ctx context.Context, lat, lon float64) (*ReverseResult, error) {
+	reqURL, err := url.Parse(c.baseURL + "/reverse")
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse URL: %w", err)
+	}
+
+	query := reqURL.Query()
+	query.Set("format", "geojson")
+	query.Set("lat", strconv.FormatFloat(lat, 'g', -1, 64))
+	query.Set("lon", strconv.FormatFloat(lon, 'g', -1, 64))
+	reqURL.RawQuery = query.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var result ReverseResult
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &result, nil
 }

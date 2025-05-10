@@ -16,3 +16,11 @@ type GeocodeResult struct {
 	DisplayName string   `json:"display_name"`
 	BoundingBox []string `json:"boundingbox"`
 }
+
+type ReverseResult struct {
+	Features []struct {
+		Properties struct {
+			DisplayName string `json:"display_name"`
+		} `json:"properties"`
+	} `json:"features"`
+}

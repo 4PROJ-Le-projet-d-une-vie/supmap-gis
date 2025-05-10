@@ -43,6 +43,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("/docs/", httpSwagger.WrapHandler)
 	mux.HandleFunc("GET /health", s.health)
 	mux.HandleFunc("GET /geocode", s.geocodeHandler())
+	mux.HandleFunc("GET /address", s.addressHandler())
 	mux.HandleFunc("POST /route", s.routeHandler())
 
 	server := &http.Server{

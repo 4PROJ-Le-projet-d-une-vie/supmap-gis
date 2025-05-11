@@ -1,215 +1,129 @@
 # supmap-gis
 
-Microservice de calcul d’itinéraires, de géocodage et de cartospondance pour Supmap.
+## 1. Introduction
+
+Le microservice **supmap-gis** fournit des fonctionnalités avancées de traitement géographique pour l’écosystème Supmap : calcul d’itinéraires multimodaux, géocodage (et géocodage inverse), et prise en compte dynamique des incidents.
+
+### 1.1. Rôles principaux
+
+- **Exposer une API HTTP** : endpoints `/geocode`, `/address`, `/route`, `/health` via net/http (handlers personnalisés).
+- **Routage multimodal** : calcul d’itinéraires avec options (type de véhicule, exclusions dynamiques, alternatives…).
+- **Géocodage** : conversion d’adresses en coordonnées GPS (et inversement).
+- **Prise en compte des incidents** : intégration du service interne supmap-incidents pour éviter des routes lors du calcul d’itinéraires.
+
+### 1.2. Fonctionnement général
+
+- **Entrée principale** : `cmd/api/main.go`
+  - Instancie la configuration, le logger, les clients HTTP externes (Nominatim, Valhalla, supmap-incidents).
+  - Compose les services métiers : GeocodingService, IncidentsService, RoutingService, injectés au serveur HTTP.
+  - Lance l’API HTTP via `internal/api/server.go` (serveur, routing, doc Swagger).
+
+- **Handlers HTTP** : `internal/api/handlers.go`
+  - Chaque endpoint a un handler dédié, qui :
+    - Valide les paramètres ou le corps de la requête.
+    - Appelle le service métier correspondant.
+    - Formate la réponse ou l’erreur.
+
+- **Services métiers** : `internal/services/`
+  - **GeocodingService** : encapsule les appels à Nominatim, standardise les résultats.
+  - **RoutingService** : orchestre le calcul d’itinéraire avec Valhalla, l’enrichit en excluant dynamiquement les routes touchées par des incidents bloquants via IncidentsService.
+  - **IncidentsService** : interroge supmap-incidents pour identifier les points à éviter.
+  - **Polyline decoding utilitaire** : interprète les polylines Valhalla (tracé des trajets).
+
+- **Providers** : `internal/providers/`
+  - Clients HTTP spécialisés pour : Valhalla (routing), Nominatim (géocodage), supmap-incidents (incidents).
+
+### 1.3. Technologies et principes d’architecture
+
+- **Go natif** : `net/http`, pas de framework tiers lourd. On utilise la librairie standard.
+- **Injection de dépendances explicite** : chaque service reçoit ses clients et dépendances à l’instanciation.
+- **Découplage fort** : chaque handler et service métier a une responsabilité claire, testable et extensible.
+- **Contrôle des erreurs centralisé** : propagation explicite des erreurs vers le handler HTTP.
 
 ---
 
-## Présentation
+## 2. Architecture générale
 
-**supmap-gis** est un microservice écrit en Go destiné à fournir des fonctionnalités de système d’information géographique (GIS) pour l'application Supmap.  
-Il expose des endpoints HTTP pour :
-- le géocodage (conversion adresse ⇄ coordonnées)
-- le calcul d’itinéraires multimodaux (en voiture, vélo, piéton, etc.)
-- la cartospondance ([map matching](https://fr.wikipedia.org/wiki/Cartospondance)) — en cours d’implémentation
-
-Il s’appuie sur les services open source [Valhalla](https://github.com/valhalla/valhalla) (routage, cartospondance) et [Nominatim](https://nominatim.org/) (géocodage).
-
----
-
-## Architecture
+### 2.1. Schéma d’architecture
 
 ```mermaid
-graph LR
-    subgraph Client
-        browser["Gateway ou autre microservice"]
+flowchart TD
+    subgraph API
+        A["Client HTTP<br/>(frontend, autres services)"]
+        B["Serveur HTTP<br/>(internal/api)"]
     end
 
-    browser -->|HTTP| api[API supmap-gis]
-
-    subgraph supmap-gis
-        api["API HTTP (handlers)"]
-        services["Services métier"]
-        nominatimProvider["Nominatim Provider"]
-        valhallaProvider["Valhalla Provider"]
-        config["Configuration"]
+    subgraph Services internes
+        C["GeocodingService<br/>(internal/services/geocoding.go)"]
+        D["RoutingService<br/>(internal/services/routing.go)"]
+        E["IncidentsService<br/>(internal/services/incidents.go)"]
     end
 
-    api --> services
-    services -->|géocodage| nominatimProvider
-    services -->|routage| valhallaProvider
-    services -->|cartospondance| valhallaProvider
+    subgraph Providers
+        F["Nominatim<br/>(internal/providers/nominatim)"]
+        G["Valhalla<br/>(internal/providers/valhalla)"]
+        H["supmap-incidents<br/>(internal/providers/supmap-incidents)"]
+    end
 
-    nominatimProvider -->|HTTP| nominatim[Nominatim]
-    valhallaProvider -->|HTTP| valhalla[Valhalla]
+    A -->|HTTP Requests| B
+    B -->|geocodeHandler / addressHandler| C
+    B -->|routeHandler| D
+    D -->|incidentsService| E
+    C -->|Appelle| F
+    D -->|Appelle| G
+    E -->|Appelle| H
 ```
+
+### 2.2. Description des interactions internes et externes
+
+- **Entrée dans le service** :  
+  Les requêtes HTTP arrivent sur le serveur (`internal/api/server.go`).  
+  Chaque endpoint (`/geocode`, `/address`, `/route`, `/health`) possède un handler dédié dans `internal/api/handlers.go`.
+
+- **Géocodage** :  
+  Les handlers `/geocode` et `/address` font appel au `GeocodingService`. Celui-ci délègue les requêtes à un client Nominatim (provider interne) pour exécuter le géocodage direct ou inverse. Les résultats sont formatés et renvoyés au client.
+
+- **Routage** :  
+  Le handler `/route` utilise le `RoutingService`.  
+  Avant de lancer le calcul d’itinéraire, ce service :
+    1. Demande au `IncidentsService` si des incidents sont présents autour des points de passage (via le provider supmap-incidents).
+    2. Exclut dynamiquement ces zones du calcul d’itinéraire.
+    3. Lance la requête de routage auprès du provider Valhalla.
+    4. Formate et retourne la réponse.
+
+- **Gestion des incidents** :  
+  Le service `IncidentsService` encapsule la logique d’appel à l’API supmap-incidents :  
+  Il calcule un cercle englobant tous les points de départ/d’arrivée/intermédiaires et interroge le provider pour obtenir la liste des incidents à proximité.
+
+- **Configuration et initialisation** :  
+  Le point d’entrée (`cmd/api/main.go`) :
+    - Charge la configuration (`internal/config`)
+    - Instancie les clients providers (Nominatim, Valhalla, supmap-incidents)
+    - Compose les services métiers
+    - Instancie le serveur HTTP
+
+### 2.3. Présentation des principaux composants
+
+- **Serveur HTTP (`internal/api/server.go`)**
+    - Démarre le serveur, gère le routage des endpoints, fournit la documentation Swagger.
+    - Injecte les services métiers nécessaires aux handlers.
+
+- **Handlers HTTP (`internal/api/handlers.go`)**
+    - Orchestrent la validation des entrées, l’appel aux services métiers et la gestion des erreurs/réponses.
+
+- **Services métiers (`internal/services/`)**
+    - `GeocodingService` : Encapsule la logique de géocodage via Nominatim.
+    - `RoutingService` : Gère le calcul d’itinéraires, l’intégration des incidents, la transformation des réponses Valhalla.
+    - `IncidentsService` : Calcule la zone à surveiller, interroge supmap-incidents, filtre les incidents pertinents qui nécessitent d'être évités.
+
+- **Providers (`internal/providers/`)**
+    - Contiennent les clients HTTP pour chaque service externe :
+        - Nominatim (géocodage)
+        - Valhalla (routage)
+        - supmap-incidents (incidents)
+
+- **Configuration (`internal/config`)**
+    - Centralise la configuration du service (ports, hôtes, etc.).
 
 ---
 
-## Structure du projet
-
-```
-supmap-gis/
-├── cmd/api/             # Point d'entrée du microservice (main.go)
-├── internal/
-│   ├── api/             # Endpoints HTTP, server, handlers
-│   ├── config/          # Chargement de la configuration
-│   ├── domain/
-│   │   └── services/    # Logique métier (routage, géocodage, cartospondance)
-│   └── providers/
-│       ├── nominatim/   # Client Nominatim
-│       └── valhalla/    # Client Valhalla
-├── Dockerfile           # Image Docker du microservice
-├── go.mod / go.sum      # Dépendances Go
-└── README.md
-```
-
----
-
-## Prérequis & Installation
-
-- Go 1.24
-- [Valhalla](https://github.com/valhalla/valhalla) et [Nominatim](https://nominatim.org/) accessibles en HTTP
-- Docker/podman
-
-### Démarrage rapide
-
-```bash
-# Cloner le repo
-git clone https://github.com/4PROJ-Le-projet-d-une-vie/supmap-gis.git
-cd supmap-gis
-
-# Démarrer le service (nécessite les variables d'environnement, voir ci-dessous)
-go run ./cmd/api
-```
-
-### Avec Docker
-
-```bash
-docker pull ghcr.io/4proj-le-projet-d-une-vie/supmap-gis:latest
-docker run --env-file .env -p 8080:80 supmap-gis
-```
-
-#### Authentification
-
-Pour pull l'image, il faut être authentifié par `docker login`.
-
-* Générer un Personal Access Token sur GitHub :
-   * Se rendre sur https://github.com/settings/tokens
-   * Cliquer sur "Generate new token"
-   * Cocher au minimum la permission `read:packages`
-   * Copier le token
-* Connecter Docker à GHCR avec le token :
-
-````bash
-echo 'YOUR_GITHUB_TOKEN' | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
-````
-
----
-
-## Configuration
-
-La configuration se fait via variables d’environnement ou un fichier `.env` :
-
-| Variable              | Description                             |
-|-----------------------|-----------------------------------------|
-| `APISERVER_HOST`      | Adresse d'écoute de l’API               |
-| `APISERVER_PORT`      | Port d’écoute de l’API                  |
-| `NOMINATIM_HOST`      | Hôte du service Nominatim               |
-| `NOMINATIM_PORT`      | Port du service Nominatim               |
-| `VALHALLA_HOST`       | Hôte du service Valhalla                |
-| `VALHALLA_PORT`       | Port du service Valhalla                |
-
----
-
-## Endpoints
-
-### Healthcheck
-
-```http
-GET /health
-```
-Renvoie `200 OK` si le service est prêt.
-
----
-
-### Géocodage
-
-```http
-GET /geocode?address=Mon+Adresse
-```
-Réponse :
-```json
-{
-  "data": [
-    { "lat": 49.123, "lon": -0.12, "name": "Nom", "display_name": "Nom complet" }
-  ],
-  "message": "success"
-}
-```
-
----
-
-### Calcul d’itinéraire
-
-```http
-POST /route
-Content-Type: application/json
-
-{
-  "locations": [
-    { "lat": 49.20, "lon": -0.39, "name": "Départ" },
-    { "lat": 49.18, "lon": -0.35, "name": "Arrivée" }
-  ],
-  "costing": "auto",
-  "costing_options": { "use_highways": 0 }
-}
-```
-
-Paramètres par défaut :
-- `language`: `"fr-FR"`
-- `alternates`: `2`
-
-Réponse :
-```json
-{
-  "data": [
-    {
-      "locations": [...],
-      "legs": [...],
-      "summary": {...}
-    }
-  ],
-  "message": "success"
-}
-```
-
----
-
-### Cartospondance (map matching) *(En cours d'implémentation)*
-
-```http
-POST /match
-Content-Type: application/json
-
-{
-  "shape": [
-    { "lat": 49.201, "lon": -0.393 },
-    { "lat": 49.187, "lon": -0.348 }
-  ],
-  "costing": "auto"
-}
-```
-
-Réponse attendue :
-```json
-{
-  "data": {
-    "matched_path": [...],
-    "summary": {...}
-  },
-  "message": "success"
-}
-```
-> **NB :** L’API, la structure de la requête et la réponse peuvent évoluer lors de l’implémentation.
-
----

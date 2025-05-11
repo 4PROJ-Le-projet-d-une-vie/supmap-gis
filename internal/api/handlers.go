@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/matheodrd/httphelper/handler"
 	"net/http"
+	"strconv"
 	"supmap-gis/internal/providers/valhalla"
 	"supmap-gis/internal/services"
 )
@@ -121,6 +122,60 @@ func (s *Server) routeHandler() http.HandlerFunc {
 		}
 
 		if err := handler.Encode[handler.Response[[]services.Trip]](resp, http.StatusOK, w); err != nil {
+			return handler.NewErrWithStatus(http.StatusInternalServerError, err)
+		}
+
+		return nil
+	})
+}
+
+type AddressResponse struct {
+	DisplayName string `json:"display_name,omitempty"`
+}
+
+// @Summary Adresse à partir de coordonnées
+// @Description Retourne l'adresse correspondante aux coordonnées géographiques fournies.
+// @Tags geocoding
+// @Accept json
+// @Produce json
+// @Param lat query number true "Latitude (ex: 49.0677)"
+// @Param lon query number true "Longitude (ex: -0.6658)"
+// @Success 200 {object} AddressResponse "Adresse trouvée à partir des coordonnées"
+// @Failure 400 {object} ErrResponse "Paramètre de requête manquant ou invalide"
+// @Failure 404 {object} ErrResponse "Aucune adresse trouvée pour les coordonnées spécifiées"
+// @Failure 500 {object} ErrResponse "Erreur interne du serveur"
+// @Router /address [get]
+func (s *Server) addressHandler() http.HandlerFunc {
+	return handler.Handler(func(w http.ResponseWriter, r *http.Request) error {
+		query := r.URL.Query()
+		if !query.Has("lat") {
+			w.WriteHeader(http.StatusBadRequest)
+			return nil
+		}
+
+		if !query.Has("lon") {
+			w.WriteHeader(http.StatusBadRequest)
+			return nil
+		}
+
+		lat, _ := strconv.ParseFloat(r.URL.Query().Get("lat"), 64)
+		lon, _ := strconv.ParseFloat(r.URL.Query().Get("lon"), 64)
+
+		resp, err := s.geocodingService.Reverse(r.Context(), lat, lon)
+		if err != nil {
+			return handler.NewErrWithStatus(http.StatusInternalServerError, err)
+		}
+
+		// Récupérer le premier élément de feature et retourner son displayname dans la struct
+		if resp == nil || len(resp.Features) == 0 || resp.Features[0].Properties.DisplayName == "" {
+			return handler.NewErrWithStatus(http.StatusNotFound, fmt.Errorf("failed to retrieve data"))
+		}
+
+		address := AddressResponse{
+			DisplayName: resp.Features[0].Properties.DisplayName,
+		}
+
+		if err := handler.Encode(address, http.StatusOK, w); err != nil {
 			return handler.NewErrWithStatus(http.StatusInternalServerError, err)
 		}
 

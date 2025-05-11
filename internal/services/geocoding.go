@@ -9,6 +9,7 @@ import (
 
 type GeocodingClient interface {
 	Search(ctx context.Context, address string) ([]nominatim.GeocodeResult, error)
+	Reverse(ctx context.Context, lat, lon float64) (*nominatim.ReverseResult, error)
 }
 
 type GeocodingService struct {
@@ -56,4 +57,8 @@ func (s *GeocodingService) Search(ctx context.Context, address string) ([]Place,
 	}
 
 	return places, nil
+}
+
+func (s *GeocodingService) Reverse(ctx context.Context, lat, lon float64) (*nominatim.ReverseResult, error) {
+	return s.client.Reverse(ctx, lat, lon)
 }

@@ -585,8 +585,6 @@ sequenceDiagram
     API-->>Client: 200 OK (json)
 ```
 
----
-
 ### 7.3. Stack trace typique : `/route` (POST)
 
 **Stack trace (ordre d’appel)**
@@ -627,5 +625,47 @@ sequenceDiagram
     RoutingService-->>API: []Trip
     API-->>Client: 200 OK (json)
 ```
+
+---
+
+## 8. Configuration et build
+
+### 8.1. Variables d’environnement
+
+Le service utilise des variables d’environnement pour la configuration ; elles sont typiquement définies dans un fichier `.env` (à la racine du projet ou injectées dans l’environnement d’exécution).
+
+| Variable                | Rôle                                   |
+|-------------------------|----------------------------------------|
+| `API_SERVER_HOST`       | Hôte d’écoute du serveur API HTTP      |
+| `API_SERVER_PORT`       | Port d’écoute du serveur API HTTP      |
+| `NOMINATIM_HOST`        | Hôte du provider Nominatim (géocodage) |
+| `NOMINATIM_PORT`        | Port du provider Nominatim             |
+| `VALHALLA_HOST`         | Hôte du provider Valhalla (routage)    |
+| `VALHALLA_PORT`         | Port du provider Valhalla              |
+| `SUPMAP_INCIDENTS_HOST` | Hôte du provider supmap-incidents      |
+| `SUPMAP_INCIDENTS_PORT` | Port du provider supmap-incidents      |
+
+**Exemple de fichier `.env` :**
+```
+API_SERVER_HOST=0.0.0.0
+API_SERVER_PORT=8080
+NOMINATIM_HOST=nominatim
+NOMINATIM_PORT=8081
+VALHALLA_HOST=valhalla
+VALHALLA_PORT=8002
+SUPMAP_INCIDENTS_HOST=supmap-incidents
+SUPMAP_INCIDENTS_PORT=8082
+```
+
+### 8.2. CI : build & push automatique (GitHub Actions)
+
+Le dépôt embarque un workflow CI/CD (.github/workflows/image-publish.yml) qui :
+
+- **Déclencheur** : sur chaque push sur la branche `master`
+- **Actions** :
+    1. Checkout du code
+    2. Login au registre de conteneurs GitHub (`ghcr.io`) via `GITHUB_TOKEN`
+    3. Build de l’image Docker (taggée `ghcr.io/4proj-le-projet-d-une-vie/supmap-gis:latest`)
+    4. Push de l’image sur GitHub Container Registry
 
 ---

@@ -447,3 +447,77 @@ sequenceDiagram
 
 ---
 
+## 6. Structures & interfaces importantes
+
+Cette section synthétise les structures et interfaces clés du projet, en complément des détails déjà vus sur les endpoints et services. Elle se concentre sur la modélisation métier, l’API, et le découplage via interfaces. (Les détails des champs sont volontairement réduits pour éviter la redite.)
+
+---
+
+### 6.1. Structures principales
+
+#### 6.1.1. Entités métier
+
+- **Place**
+    - Représente un résultat de géocodage (lat, lon, nom, display_name).
+- **Trip / Leg / Maneuver / Summary**
+    - Décomposent un itinéraire : un Trip regroupe une ou plusieurs Leg (tronçons), chacune contenant des Maneuver (instructions) et un résumé (Summary).
+- **Point**
+    - Simple couple latitude/longitude utilisé dans plusieurs contextes (requêtes, incidents, polylines…).
+
+#### 6.1.2. Structures de requête/réponse API
+
+- **RouteRequest**
+    - Body de `/route`. Contient : `locations`, `costing`, `exclude_locations`, `costing_options`, `language`, `alternates`.
+- **AddressResponse**
+    - Réponse de `/address`. Champ unique : `display_name`.
+- **handler.Response[T]**
+    - Enveloppe générique standardisant les réponses JSON (champ `data` et `message`).
+
+### 6.2. Interfaces clés
+
+#### 6.2.1. Interfaces de clients (Providers)
+
+- **GeocodingClient**
+    - `Search(ctx, address string) ([]GeocodeResult, error)`
+    - `Reverse(ctx, lat, lon float64) (*ReverseResult, error)`
+- **RoutingClient**
+    - `CalculateRoute(ctx, routeRequest) (*RouteResponse, error)`
+- **IncidentsClient**
+    - `IncidentsInRadius(ctx, lat, lon, radius) ([]Incident, error)`
+
+#### 6.2.2. Interfaces de services métiers
+
+- **GeocodingService**
+    - `Search`, `Reverse`
+- **RoutingService**
+    - `CalculateRoute`
+- **IncidentsService**
+    - `IncidentsAroundLocations`
+
+Chacune de ces interfaces permet d’injecter des implémentations alternatives (mocks, doubles, providers réels…) pour les tests ou l’évolution du projet.
+
+### 6.3. Diagramme des dépendances principales
+
+```mermaid
+classDiagram
+    class GeocodingService {
+        - GeocodingClient client
+    }
+    class RoutingService {
+        - RoutingClient client
+        - IncidentsService incidentsService
+    }
+    class IncidentsService {
+        - IncidentsClient client
+    }
+
+    GeocodingService --> GeocodingClient
+    RoutingService --> RoutingClient
+    RoutingService --> IncidentsService
+    IncidentsService --> IncidentsClient
+```
+
+> Les structures et interfaces sont conçues pour garantir un découplage fort, une testabilité maximale et une évolution facilitée du code métier et des intégrations externes.
+
+---
+

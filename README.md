@@ -4,6 +4,9 @@
 
 Le microservice **supmap-gis** fournit des fonctionnalités avancées de traitement géographique pour l’écosystème Supmap : calcul d’itinéraires multimodaux, géocodage (et géocodage inverse), et prise en compte dynamique des incidents.
 
+* Pour le routing, on utilise [Valhalla](https://github.com/valhalla/valhalla/) qui est un projet open source qu'on auto-héberge.
+* Pour le geocoding, on utilise [Nominatim](https://github.com/osm-search/Nominatim), un projet open source qu'on auto-héberge également.
+
 ### 1.1. Rôles principaux
 
 - **Exposer une API HTTP** : endpoints `/geocode`, `/address`, `/route`, `/health` via net/http (handlers personnalisés).

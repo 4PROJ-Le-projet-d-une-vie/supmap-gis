@@ -127,3 +127,57 @@ flowchart TD
 
 ---
 
+## 3. Organisation du projet et Structure des dossiers
+
+Le projet est organisé selon une architecture claire et modulaire inspirée des standards Go, favorisant la séparation des responsabilités et la testabilité.
+
+### 3.1 Arborescence commentée (niveaux principaux)
+
+```
+supmap-gis/
+├── cmd/
+│   └── api/                 # Point d'entrée du service (main.go)
+├── internal/
+│   ├── api/                 # Serveur HTTP, routing, handlers et middlewares
+│   ├── config/              # Chargement et validation de la configuration (variables d'environnement)
+│   ├── providers/           # Clients pour services externes (Valhalla, Nominatim, supmap-incidents)
+│   └── services/            # Logique métier (géocodage, routage, incidents, utilitaires)
+├── go.mod / go.sum          # Dépendances Go
+├── Dockerfile               # Déploiement containerisé
+└── ...                      # Autres fichiers (docs, configs, CI, etc.)
+```
+
+### 3.2 Rôle de chaque dossier/fichier principal
+
+- **cmd/api/**  
+  Contient le point d’entrée du microservice (`main.go`).
+
+- **internal/api/**
+    - Définit le serveur HTTP, le routing (association endpoints/handlers), la gestion du CORS, la documentation Swagger.
+    - Fichiers clés :
+        - `server.go` : instanciation du serveur, mapping des routes
+        - `handlers.go` : logique des endpoints (`/geocode`, `/address`, `/route`, `/health`)
+        - `middleware.go` : middlewares, ex : gestion CORS
+
+- **internal/config/**
+    - Centralise le chargement et la validation de la configuration (hôtes, ports des providers, etc.)
+    - Permet l’utilisation de variables d’environnement
+
+- **internal/providers/**
+    - Implémente un client HTTP pour chaque service tiers ou interne :
+        - `nominatim/` : géocodage/adressage
+        - `valhalla/` : routage
+        - `supmap-incidents/` : incidents routiers
+
+- **internal/services/**
+    - Regroupe la logique métier :
+        - `geocoding.go` : intégration et adaptation des résultats Nominatim
+        - `routing.go` : orchestration du calcul d’itinéraire via Valhalla, gestion dynamique des exclusions (incidents)
+        - `incidents.go` : interrogation et filtrage des incidents pertinents
+        - `polyline.go` : utilitaires de décodage de polylines Valhalla
+
+- **go.mod / go.sum**  
+  Gestion des dépendances et de la version Go du projet.
+
+---
+

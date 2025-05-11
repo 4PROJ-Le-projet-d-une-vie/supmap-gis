@@ -9,7 +9,7 @@ import (
 	"net/http"
 	_ "supmap-gis/docs"
 	"supmap-gis/internal/config"
-	"supmap-gis/internal/domain/services"
+	"supmap-gis/internal/services"
 	"sync"
 	"time"
 )

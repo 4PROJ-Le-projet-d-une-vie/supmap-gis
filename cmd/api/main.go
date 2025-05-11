@@ -9,10 +9,10 @@ import (
 	"os/signal"
 	"supmap-gis/internal/api"
 	"supmap-gis/internal/config"
-	"supmap-gis/internal/domain/services"
 	"supmap-gis/internal/providers/nominatim"
 	supmapIncidents "supmap-gis/internal/providers/supmap-incidents"
 	"supmap-gis/internal/providers/valhalla"
+	"supmap-gis/internal/services"
 	"syscall"
 )
 

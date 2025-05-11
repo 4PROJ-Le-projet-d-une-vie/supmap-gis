@@ -181,3 +181,68 @@ supmap-gis/
 
 ---
 
+## 4. Détail des services internes
+
+Cette section présente le fonctionnement interne des principaux services métier.
+
+### 4.1. GeocodingService
+
+- **Rôle** :  
+  Fournit les opérations de géocodage direct (adresse → coordonnées) et inverse (coordonnées → adresse "humaine").  
+  Sert d’interface métier entre l’API et le provider Nominatim, en standardisant et en validant les résultats.
+
+- **Dépendances** :
+    - Client Nominatim (via l’interface `GeocodingClient`)
+
+- **Principales méthodes**
+    - `Search(ctx, address string) ([]Place, error)`  
+      → Appelle le provider, convertit et filtre les résultats Nominatim.  
+      → Retourne une liste de structures Place (lat, lon, nom, display_name).
+    - `Reverse(ctx, lat, lon float64) (*nominatim.ReverseResult, error)`  
+      → Géocodage inverse, retourne la structure ReverseResult du provider.
+
+### 4.2. RoutingService
+
+- **Rôle** :  
+  Orchestration complète du calcul d’itinéraire :
+    - Prise en compte des incidents à proximité (“zones à éviter” dynamiques)
+    - Appel du provider Valhalla
+    - Transformation et enrichissement de la réponse pour l’API (legs, summary, shape, alternatives…)
+
+- **Dépendances** :
+    - Client Valhalla (`RoutingClient`)
+    - `IncidentsService` (pour lister les incidents autour du trajet)
+
+- **Principales méthodes**
+    - `CalculateRoute(ctx, routeRequest valhalla.RouteRequest) (*[]Trip, error)`  
+      → Extrait les points du trajet, interroge `IncidentsService`, enrichit la requête Valhalla en excluant les points à risque, appelle Valhalla, convertit la réponse (trips, legs, summary…)
+    - Fonctions d’adaptation (“mapping”) :
+        - `MapValhallaTrip(vt valhalla.Trip) (*Trip, error)`
+        - `mapValhallaLeg(vl valhalla.Leg) (*Leg, error)`
+          → Transformations détaillées du format Valhalla vers les DTO internes.
+
+### 4.3. IncidentsService
+
+- **Rôle** :  
+  Fournit la liste des incidents routiers à prendre en compte lors du calcul d’itinéraire, selon les points de passage du trajet.  
+  Calcule un cercle englobant (“bounding circle”) autour des points et interroge le provider supmap-incidents.
+
+- **Dépendances** :
+    - Client supmap-incidents (`IncidentsClient`)
+
+- **Principales méthodes**
+    - `IncidentsAroundLocations(ctx, locations []Point) []Point`  
+      → Calcule le centre et le rayon optimaux, appelle le provider, filtre les incidents pertinents nécessitant d’être évités.
+    - Fonctions utilitaires privées :
+        - `computeLocationsBoundingCircle(locations []Point) (centerLat, centerLon, radius)`
+        - `haversine(lat1, lon1, lat2, lon2 float64) float64` (pour la distance sphérique)
+
+### 4.4. Résumé des dépendances
+
+- **GeocodingService** → Client Nominatim
+- **RoutingService** → Client Valhalla, IncidentsService
+- **IncidentsService** → Client supmap-incidents
+
+L’instanciation des services se fait dans le `main.go`, chaque service recevant explicitement ses dépendances (découplage fort, testabilité).
+
+Chaque service expose uniquement les méthodes nécessaires à ses usages métier, en cachant la complexité des providers et en garantissant un formatage homogène pour l’API.

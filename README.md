@@ -521,3 +521,111 @@ classDiagram
 
 ---
 
+## 7. Stack trace & appels typiques
+
+Cette section détaille, pour chacun des endpoints principaux, la stack trace logique typique (ordre d’appel des fonctions/services), les signatures des fonctions clés, et fournit un diagramme de séquence synthétique pour la compréhension globale.
+
+### 7.1. Stack trace typique : `/geocode` (GET)
+
+**Stack trace (ordre d’appel)**
+
+1. `Server.geocodeHandler()`
+2. `GeocodingService.Search(ctx, address string) ([]Place, error)`
+3. `GeocodingClient.Search(ctx, address string) ([]GeocodeResult, error)`
+
+**Signatures principales**
+
+- `func (s *Server) geocodeHandler() http.HandlerFunc`
+- `func (s *GeocodingService) Search(ctx context.Context, address string) ([]Place, error)`
+- `func (n *NominatimClient) Search(ctx context.Context, address string) ([]GeocodeResult, error)`
+
+**Diagramme de séquence**
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant GeocodingService
+    participant Nominatim Provider
+    Client->>API: GET /geocode?address=...
+    API->>GeocodingService: Search(ctx, address)
+    GeocodingService->>Nominatim Provider: Search(ctx, address)
+    Nominatim Provider-->>GeocodingService: Résultats Nominatim
+    GeocodingService-->>API: []Place
+    API-->>Client: 200 OK (json)
+```
+
+### 7.2. Stack trace typique : `/address` (GET)
+
+**Stack trace (ordre d’appel)**
+
+1. `Server.addressHandler()`
+2. `GeocodingService.Reverse(ctx, lat, lon float64) (*ReverseResult, error)`
+3. `GeocodingClient.Reverse(ctx, lat, lon float64) (*ReverseResult, error)`
+
+**Signatures principales**
+
+- `func (s *Server) addressHandler() http.HandlerFunc`
+- `func (s *GeocodingService) Reverse(ctx context.Context, lat, lon float64) (*nominatim.ReverseResult, error)`
+- `func (n *NominatimClient) Reverse(ctx context.Context, lat, lon float64) (*ReverseResult, error)`
+
+**Diagramme de séquence**
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant GeocodingService
+    participant Nominatim Provider
+    Client->>API: GET /address?lat=...&lon=...
+    API->>GeocodingService: Reverse(ctx, lat, lon)
+    GeocodingService->>Nominatim Provider: Reverse(ctx, lat, lon)
+    Nominatim Provider-->>GeocodingService: ReverseResult
+    GeocodingService-->>API: ReverseResult
+    API-->>Client: 200 OK (json)
+```
+
+---
+
+### 7.3. Stack trace typique : `/route` (POST)
+
+**Stack trace (ordre d’appel)**
+
+1. `Server.routeHandler()`
+2. `RoutingService.CalculateRoute(ctx, routeRequest valhalla.RouteRequest) (*[]Trip, error)`
+3. `IncidentsService.IncidentsAroundLocations(ctx, locations []Point) []Point`
+4. `IncidentsClient.IncidentsInRadius(ctx, lat, lon, radius) ([]Incident, error)`
+5. `RoutingClient.CalculateRoute(ctx, routeRequest) (*RouteResponse, error)`
+6. Mapping functions (`MapValhallaTrip`, etc.)
+
+**Signatures principales**
+
+- `func (s *Server) routeHandler() http.HandlerFunc`
+- `func (s *RoutingService) CalculateRoute(ctx context.Context, routeRequest valhalla.RouteRequest) (*[]Trip, error)`
+- `func (s *IncidentsService) IncidentsAroundLocations(ctx context.Context, locations []Point) []Point`
+- `func (c *IncidentsClient) IncidentsInRadius(ctx context.Context, lat, lon float64, radius RadiusMeter) ([]Incident, error)`
+- `func (c *ValhallaClient) CalculateRoute(ctx context.Context, req valhalla.RouteRequest) (*valhalla.RouteResponse, error)`
+
+**Diagramme de séquence simplifié**
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant RoutingService
+    participant IncidentsService
+    participant Incidents Provider
+    participant Valhalla Provider
+    Client->>API: POST /route (JSON)
+    API->>RoutingService: CalculateRoute(ctx, routeRequest)
+    RoutingService->>IncidentsService: IncidentsAroundLocations(ctx, locations)
+    IncidentsService->>Incidents Provider: IncidentsInRadius(ctx, center, radius)
+    Incidents Provider-->>IncidentsService: []Incident
+    IncidentsService-->>RoutingService: []Point (à exclure)
+    RoutingService->>Valhalla Provider: CalculateRoute(ctx, routeRequest+exclusions)
+    Valhalla Provider-->>RoutingService: RouteResponse
+    RoutingService-->>API: []Trip
+    API-->>Client: 200 OK (json)
+```
+
+---

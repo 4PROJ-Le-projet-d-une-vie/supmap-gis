@@ -246,3 +246,204 @@ Cette section présente le fonctionnement interne des principaux services métie
 L’instanciation des services se fait dans le `main.go`, chaque service recevant explicitement ses dépendances (découplage fort, testabilité).
 
 Chaque service expose uniquement les méthodes nécessaires à ses usages métier, en cachant la complexité des providers et en garantissant un formatage homogène pour l’API.
+
+---
+
+## 5. Endpoints HTTP exposés
+
+### 5.1. Tableau récapitulatif
+
+| Méthode | Chemin   | Description fonctionnelle                           |
+|---------|----------|-----------------------------------------------------|
+| GET     | /geocode | Géocodage d’une adresse (adresse → coordonnées)     |
+| GET     | /address | Géocodage inverse (coordonnées → adresse)           |
+| POST    | /route   | Calcul d’itinéraire multimodal avec exclusions      |
+| GET     | /health  | (Non documenté ici, endpoint de liveness/readiness) |
+
+
+### 5.2. Détails des endpoints
+
+#### 5.2.1. `/geocode` — Géocodage d’adresse
+
+- **Méthode + chemin**  
+  `GET /geocode`
+
+- **Description fonctionnelle**  
+  Convertit une adresse “humaine” en coordonnées GPS. Retourne une liste de résultats possibles (lat, lon, nom…).
+
+- **Paramètres attendus**
+    - Query : `address` (obligatoire) — l’adresse à géocoder
+
+- **Exemple de requête**
+  ```
+  GET /geocode?address=Abbaye aux Dames Caen
+  ```
+
+- **Exemple de réponse**
+  ```json
+  {
+    "data": [
+      {
+        "lat": 49.1864,
+        "lon": -0.3608,
+        "name": "Abbaye aux Dames",
+        "display_name": "Abbaye aux Dames, Caen, France"
+      },
+      ...
+    ],
+    "message": "success"
+  }
+  ```
+
+- **Description du flux de traitement**
+    - Vérification du paramètre `address` (400 si manquant)
+    - Appel à `GeocodingService.Search()`
+    - Conversion et formatage des résultats
+    - Retour HTTP 200 avec la liste (vide si aucun résultat) ou 500 en cas d’erreur
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant GeocodingService
+    participant Provider Nominatim
+    Client->>API: GET /geocode?address=...
+    API->>GeocodingService: Search(address)
+    GeocodingService->>Provider Nominatim: Search(address)
+    Provider Nominatim-->>GeocodingService: Résultats
+    GeocodingService-->>API: Liste Places
+    API-->>Client: 200 OK (json)
+```
+
+#### 5.2.2. `/address` — Géocodage inverse
+
+- **Méthode + chemin**  
+  `GET /address`
+
+- **Description fonctionnelle**  
+  Retourne l’adresse “humaine” la plus proche pour des coordonnées GPS fournies.
+
+- **Paramètres attendus**
+    - Query : `lat` (obligatoire, float, ex: 49.0677)
+    - Query : `lon` (obligatoire, float, ex: -0.6658)
+
+- **Exemple de requête**
+  ```
+  GET /address?lat=49.0677&lon=-0.6658
+  ```
+
+- **Exemple de réponse**
+  ```json
+  {
+    "display_name": "Place de la Gare, Caen, France"
+  }
+  ```
+
+- **Description du flux de traitement**
+    - Vérification des paramètres `lat` et `lon` (400 si manquant)
+    - Appel à `GeocodingService.Reverse()`
+    - Extraction du champ `display_name` du premier résultat
+    - Retour 200 avec l’adresse, 404 si aucune trouvée
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant GeocodingService
+    participant Provider Nominatim
+    Client->>API: GET /address?lat=...&lon=...
+    API->>GeocodingService: Reverse(lat, lon)
+    GeocodingService->>Provider Nominatim: Reverse(lat, lon)
+    Provider Nominatim-->>GeocodingService: Résultats
+    GeocodingService-->>API: ReverseResult
+    API-->>Client: 200 OK (json) ou 404
+```
+
+#### 5.2.3. `/route` — Calcul d’itinéraire multimodal
+
+- **Méthode + chemin**  
+  `POST /route`
+
+- **Description fonctionnelle**  
+  Calcule l’itinéraire optimal selon un ensemble de points, le profil de déplacement, et les incidents à éviter (prise en compte dynamique des exclusions). Peut proposer des itinéraires alternatifs.
+
+- **Paramètres attendus**
+    - Body (JSON) :
+        - `locations` (obligatoire, array) : liste d’objets `{lat, lon}` (au moins 2)
+        - `costing` (obligatoire, string) : mode de transport (`auto`, `bicycle`, etc.)
+        - `exclude_locations` (optionnel) : coordonnées à éviter (normalement gérées automatiquement)
+        - `costing_options` (optionnel, objet) : options permettant d'éviter les péages, les ferries et les autoroutes
+        - `language` (optionnel, string, défaut `fr-FR`) : langue des instructions
+        - `alternates` (optionnel, int, défaut 2)
+
+- **Exemple de requête**
+  ```json
+  POST /route
+  {
+    "costing": "auto",
+    "costing_options": {
+      "use_tolls": 0
+    },
+    "locations": [
+      {"lat": 49.1864, "lon": -0.3608},
+      {"lat": 49.0677, "lon": -0.6658}
+    ]
+  }
+  ```
+
+- **Exemple de réponse**
+  ```json
+  {
+    "data": [
+      {
+        "locations": [...],
+        "legs": [
+          {
+            "maneuvers": [
+              {"instruction": "Prendre à droite", ...}
+            ],
+            "summary": {"length": 8.2, "time": 740},
+            "shape": [
+              {"lat": 49.18, "lon": -0.36},
+              ...
+            ]
+          }
+        ],
+        "summary": {"length": 8.2, "time": 740}
+      }
+    ],
+    "message": "success"
+  }
+  ```
+
+- **Description du flux de traitement**
+    - Décodage et validation du body JSON (locations >= 2, costing valide…)
+    - Conversion en requête Valhalla
+    - Appel à `RoutingService.CalculateRoute()`
+        - Appel à `IncidentsService` pour exclure dynamiquement les incidents
+        - Appel au provider Valhalla
+        - Mapping du résultat (legs, maneuvers, summary…)
+    - Retour 200 avec la liste des itinéraires ou 500 en cas d’erreur
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant RoutingService
+    participant IncidentsService
+    participant Provider Incidents
+    participant Provider Valhalla
+    Client->>API: POST /route (JSON)
+    API->>RoutingService: CalculateRoute(req)
+    RoutingService->>IncidentsService: IncidentsAroundLocations(locations)
+    IncidentsService->>Provider Incidents: IncidentsInRadius
+    Provider Incidents-->>IncidentsService: Liste incidents
+    IncidentsService-->>RoutingService: Points à exclure
+    RoutingService->>Provider Valhalla: CalculateRoute(req+exclusions)
+    Provider Valhalla-->>RoutingService: Résultat Valhalla
+    RoutingService-->>API: Mapped Trips
+    API-->>Client: 200 OK (json)
+```
+
+---
+
